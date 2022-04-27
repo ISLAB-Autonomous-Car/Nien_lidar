@@ -25,9 +25,6 @@ class cluster_Lidar:
     def get_data(self):
         try:
             for i,scan in enumerate(self.lidar.iter_scans()):
-                # self.check_return(list(scan))
-                # print(self.rtrn)
-                #self.rtrn = 0
                 print('%d: Got %d measurments' % (i, len(scan)))
                 self.img_draw = np.zeros((self.im_size[0],self.im_size[1],3),np.uint8)
                 scan_ = self.cluster_dist(scan)
@@ -35,20 +32,9 @@ class cluster_Lidar:
                 #data_clust = self.data_clust1(scan_)
                 # gom cum kieu du lieu la xy
                 self.lidar_show(scan_)
-               #print(" Done ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         except Exception as e:
             print(e)
         #     pass
-    # hàm phân cụm 
-    def line_sketch(self,cluster):
-        x = []
-        y = []
-        for x,y in cluster:
-            x.append(x)
-            y.append(y)
-        line  = polyfit(x,y,1)
-        return line
-        
     def cluster_dist(self,scan):
         lst_scan = []
         for sc in scan:
@@ -85,7 +71,6 @@ class cluster_Lidar:
         for scan in lidar_scan:
             x = int(scan[2]*math.sin(scan[1]*self.alpha)*self.scale) + self.x
             y = int(scan[2]*math.cos(scan[1]*self.alpha)*self.scale) + self.y
-            #print(x,y,"la toa do")
             self.check_safe(x,y)
             #self.rtrn =0
             if scan[3] is None:
@@ -95,11 +80,6 @@ class cluster_Lidar:
             color = (int(color[0]),int(color[1]),int(color[2]))
             cv2.circle(self.img_draw,(x,y),2,color,1)
             self.axle_car()
-            # sign = self.check_safe(x,y)
-            # if sign == 1:
-            #     print(" Return your lane")
-            # else:
-            #     print("Ostacle in right sign")
         self.img_draw = cv2.flip(self.img_draw,0)
         cv2.imshow("Result",self.img_draw)
         cv2.waitKey(1)
@@ -116,24 +96,20 @@ class cluster_Lidar:
                     if x > 0 and y > 0:
                     #chuyen xy trong ham nay luon
                         sub_point.append([x,y])
-                #flag += self.check_safe(x,y)
             if len(sub_point):
                 data_point.append(sub_point)
                 index +=1
                 sub_point = []
             else:
                 break
-        #print(data_point,"toa do data clust")
         return data_point
     def check_data_clust(self,data_point):
         first_point = data_point[0]
         end_point = data_point[-1]
-        #print(data_point,"before coverting")
         if abs(end_point[1] - first_point[1]) < 5:
             for i in range(0,len(data_point)):
                 if data_point[i][3] == end_point[3]:
                     data_point[i][3] = first_point[3]
-        #print(data_point,"After converting")
         return data_point
     def axle_car(self):
         start_point_y = [self.x,0]
