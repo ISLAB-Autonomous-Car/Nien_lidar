@@ -5,6 +5,8 @@ import math
 import math
 from rplidar import RPLidar
 from numpy.polynomial.polynomial import polyfit
+import config as cf
+cf.turn = None
 class cluster_Lidar:
     def __init__(self,port_name,img_size,lamda,error):
         # self.point = point 
@@ -63,8 +65,10 @@ class cluster_Lidar:
         print(self.rtrn,"is value")
         if self.rtrn > 0:
             print("Ostacle in right side")
+            cf.turn = 0
         else:
             print(" Return your lane")
+            cf.turn = 1
         self.rtrn = 0
         return lst_scan
     def lidar_show(self,lidar_scan):
