@@ -4,8 +4,8 @@ import cv2
 import math
 import math
 from rplidar import RPLidar
-from numpy.polynomial.polynomial import polyfit
 import config as cf
+from ransac import ransac
 cf.turn = None
 class cluster_Lidar:
     def __init__(self,port_name,img_size,lamda,error):
@@ -19,7 +19,7 @@ class cluster_Lidar:
         self.lidar = RPLidar(port_name)
         self.im_size = img_size
         self.img_draw = np.zeros((img_size[0],img_size[1],3),np.uint8)
-        self.scale = 0.3
+        self.scale = 0.2
         self.carw = 860*self.scale
         self.carh = 860*2*self.scale
         self.side = 800*self.scale
@@ -31,7 +31,9 @@ class cluster_Lidar:
                 self.img_draw = np.zeros((self.im_size[0],self.im_size[1],3),np.uint8)
                 scan_ = self.cluster_dist(scan)
                 # phan cum kieu du lieu la T va R
-                #data_clust = self.data_clust1(scan_)
+                data_clust = self.data_clust1(scan_)
+                print(data_clust)
+                self.deploy_ransac(data_clust)
                 # gom cum kieu du lieu la xy
                 self.lidar_show(scan_)
         except Exception as e:
@@ -75,7 +77,8 @@ class cluster_Lidar:
         for scan in lidar_scan:
             x = int(scan[2]*math.sin(scan[1]*self.alpha)*self.scale) + self.x
             y = int(scan[2]*math.cos(scan[1]*self.alpha)*self.scale) + self.y
-            self.check_safe(x,y)
+            #
+            # self.check_safe(x,y)
             #self.rtrn =0
             if scan[3] is None:
                 scan[3] = 0
@@ -138,10 +141,29 @@ class cluster_Lidar:
         else:
             self.rtrn += 0
 
-    # def check_return(self,scan):
-    #     x = int(scan[2]*math.sin(scan[1]*self.alpha)*self.scale) + self.x
-    #     y = int(scan[2]*math.cos(scan[1]*self.alpha)*self.scale) + self.y
-    #     self.rtrn += self.check_safe(x,y)
+    def check_return(self,scan):
+        x = int(scan[2]*math.sin(scan[1]*self.alpha)*self.scale) + self.x
+        y = int(scan[2]*math.cos(scan[1]*self.alpha)*self.scale) + self.y
+        self.rtrn += self.check_safe(x,y)
+    def deploy_ransac(self,data_clusted):
+        len_max = 0
+        if data_clusted is not None:
+            for i in range(len(data_clusted)):
+                if len(data_clusted[i])>len_max:
+                    len_max = i
+            #print(len(data_clusted[len_max]), "Is max")
+            a,b,c = ransac(data_clusted[len_max])
+            print(data_clusted[len_max][0],data_clusted[len_max][-1])
+            x1 = int(data_clusted[len_max][0][0]) + self.x
+            x2 = int(data_clusted[len_max][-1][0]) + self.x
+            y1 = int((c-a*x1)/b) + self.y
+            y2 = int((c-a*x2)/b) + self.y
+            cv2.line(self.img_draw,(x1,y1),(x2,y2),(0,128,200),2)
+        else:
+            print("No point in cluster")
+            
+            
+
 
         
 
