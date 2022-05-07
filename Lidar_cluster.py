@@ -6,7 +6,9 @@ import math
 from rplidar import RPLidar
 import config as cf
 from ransac import ransac
-cf.turn = None
+import csv
+import time 
+# cf.turn = None
 class cluster_Lidar:
     def __init__(self,port_name,img_size,lamda,error):
         # self.point = point 
@@ -19,7 +21,7 @@ class cluster_Lidar:
         self.lidar = RPLidar(port_name)
         self.im_size = img_size
         self.img_draw = np.zeros((img_size[0],img_size[1],3),np.uint8)
-        self.scale = 0.2
+        self.scale = 0.15
         self.carw = 860*self.scale
         self.carh = 860*2*self.scale
         self.side = 800*self.scale
@@ -27,15 +29,19 @@ class cluster_Lidar:
     def get_data(self):
         try:
             for i,scan in enumerate(self.lidar.iter_scans()):
+                t = time.time()
                 print('%d: Got %d measurments' % (i, len(scan)))
                 self.img_draw = np.zeros((self.im_size[0],self.im_size[1],3),np.uint8)
-                scan_ = self.cluster_dist(scan)
-                # phan cum kieu du lieu la T va R
-                data_clust = self.data_clust1(scan_)
-                print(data_clust)
-                self.deploy_ransac(data_clust)
-                # gom cum kieu du lieu la xy
-                self.lidar_show(scan_)
+                if scan is not None:
+                    scan_ = self.cluster_dist(scan)
+                    # phan cum kieu du lieu la T va R
+                    data_clust = self.data_clust1(scan_)
+                    # #print(data_clust)
+                    self.deploy_ransac(data_clust)
+                    # # gom cum kieu du lieu la xy
+                    self.lidar_show(scan_)
+                    fps = 1/(time.time()-t)
+                print("FPS:",fps)
         except Exception as e:
             print(e)
         #     pass
@@ -44,7 +50,7 @@ class cluster_Lidar:
         for sc in scan:
             #self.rtrn = 0
             sc = list(sc)
-            if int(sc[2] < 3000): # giới hạn bán kính
+            if int(sc[2] < 5000): # giới hạn bán kính
                 if int(sc[1])>90 and int(sc[1])<180:
                     pass
                 else:
@@ -67,10 +73,10 @@ class cluster_Lidar:
         print(self.rtrn,"is value")
         if self.rtrn > 0:
             print("Ostacle in right side")
-            cf.turn = 0
+            # cf.turn = 0
         else:
             print(" Return your lane")
-            cf.turn = 1
+            # cf.turn = 1
         self.rtrn = 0
         return lst_scan
     def lidar_show(self,lidar_scan):
@@ -85,9 +91,11 @@ class cluster_Lidar:
             np.random.seed(scan[3])
             color = np.random.randint(256, size = 3)
             color = (int(color[0]),int(color[1]),int(color[2]))
-            cv2.circle(self.img_draw,(x,y),2,color,1)
+            cv2.circle(self.img_draw,(x,y),2,color,6)
             self.axle_car()
         self.img_draw = cv2.flip(self.img_draw,0)
+        self.img_draw = cv2.rotate(self.img_draw,cv2.ROTATE_90_CLOCKWISE)
+        # self.img_draw = cv2.rotate(self.img_draw,cv2.)
         cv2.imshow("Result",self.img_draw)
         cv2.waitKey(1)
     # hàm phân cụm chuyển từ dạng data gốc [ 15, theta, radius, class] về dạng [[class]] với kiểu dữ liệu là x và y
@@ -119,19 +127,19 @@ class cluster_Lidar:
                     data_point[i][3] = first_point[3]
         return data_point
     def axle_car(self):
-        start_point_y = [self.x,0]
-        end_point_y = [self.x,int(self.y*2)]
-        start_point_x = [0,self.y]
-        end_point_x = [int(self.x*2),self.y]
+        start_point_y = (self.x,0)
+        end_point_y = (self.x,int(self.y*2))
+        start_point_x = (0,self.y)
+        end_point_x = (int(self.x*2),self.y)
         cv2.line(self.img_draw,start_point_y,end_point_y,(255,0,0),1)
         cv2.line(self.img_draw,start_point_x,end_point_x,(255,0,0),1)
-        start_point_rec = [int(self.x+self.carh),int(self.y-self.carw)]
-        end_point_rec = [self.x,self.y]
-        cv2.rectangle(self.img_draw,start_point_rec,end_point_rec,(255,196,12),4)
+        start_point_rec = (int(self.x+self.carh),int(self.y-self.carw))
+        end_point_rec = (self.x,self.y)
+        cv2.rectangle(self.img_draw,start_point_rec,end_point_rec,(255,196,12),5)
         #safe_start = []
     def check_safe(self,x,y):
-        start = [self.x,int(self.y + self.side)]
-        end = [int(self.x + self.carh*0.9),self.y]
+        start = (self.x,int(self.y + self.side))
+        end = (int(self.x + self.carh*0.9),self.y)
         cv2.rectangle(self.img_draw,start,end,(0,196,12),1)
         cv2.circle(self.img_draw,tuple(start),2,(0,0,128),5)
         cv2.circle(self.img_draw,tuple(end),2,(128,0,0),5)
@@ -151,17 +159,31 @@ class cluster_Lidar:
             for i in range(len(data_clusted)):
                 if len(data_clusted[i])>len_max:
                     len_max = i
-            #print(len(data_clusted[len_max]), "Is max")
-            a,b,c = ransac(data_clusted[len_max])
-            print(data_clusted[len_max][0],data_clusted[len_max][-1])
-            x1 = int(data_clusted[len_max][0][0]) + self.x
-            x2 = int(data_clusted[len_max][-1][0]) + self.x
-            y1 = int((c-a*x1)/b) + self.y
-            y2 = int((c-a*x2)/b) + self.y
+            
+            data_ran = sorted(data_clusted[len_max],key = lambda l: l[0], reverse= False)
+            a,b,c = ransac(data_ran)
+            print(data_ran, "Is max")
+            print(a,b,c)
+            #print(data_clusted[len_max][0],data_clusted[len_max][-1])
+            x1 = int(data_ran[0][0]) 
+            x2 = int(data_ran[-1][0])
+            if b == 0:
+                b = b + 0.001
+            y1 = int((-c-a*x1)/b)
+            y2 = int((-c-a*x2)/b)
             cv2.line(self.img_draw,(x1,y1),(x2,y2),(0,128,200),2)
+            distance = self.distance_compute(a,b,c)
+            print(distance)
+            with open("distance3.csv","a",newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([distance])
         else:
             print("No point in cluster")
-            
+
+    def distance_compute(self,a,b,c):
+        return abs(a*self.x + b*self.y +c)/math.sqrt(a**2+ b**2)
+
+
             
 
 

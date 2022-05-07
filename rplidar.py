@@ -85,10 +85,12 @@ def _process_scan(raw):
     inversed_new_scan = bool((_b2i(raw[0]) >> 1) & 0b1)
     quality = _b2i(raw[0]) >> 2
     if new_scan == inversed_new_scan:
-        raise RPLidarException('New scan flags mismatch')
+        pass
+        #raise RPLidarException('New scan flags mismatch')
     check_bit = _b2i(raw[1]) & 0b1
     if check_bit != 1:
-        raise RPLidarException('Check bit not equal to 1')
+        pass
+        #raise RPLidarException('Check bit not equal to 1')
     angle = ((_b2i(raw[1]) >> 1) + (_b2i(raw[2]) << 7)) / 64.
     distance = (_b2i(raw[3]) + (_b2i(raw[4]) << 8)) / 4.
     return new_scan, quality, angle, distance
@@ -386,12 +388,13 @@ class RPLidar(object):
             if max_buf_meas:
                 data_in_buf = self._serial.inWaiting()
                 if data_in_buf > max_buf_meas:
-                    self.logger.warning(
-                        ': %d/%d. '
-                        'Cleaning buffer...',
-                        data_in_buf, max_buf_meas)
-                    self.stop()
-                    self.start(self.scanning[2])
+                    # self.logger.warning(
+                    #     ': %d/%d. '
+                    #     'Cleaning buffer...',
+                    #     data_in_buf, max_buf_meas)
+                    # self.stop()
+                    # self.start(self.scanning[2])
+                    pass
 
             if self.scanning[2] == 'normal':
                 raw = self._read_response(dsize)
